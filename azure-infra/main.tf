@@ -15,23 +15,30 @@ module "vnet" {
   location            = "East US"
   resource_group_name = module.resource_group.resource_group_name
   address_space       = ["10.0.0.0/16"]
-  subnets = [
-    {
-      name             = "aks-subnet"
-      address_prefixes = ["10.0.1.0/24"]
-    },
-    {
-      name             = "appgq-subnet"
-      address_prefixes = ["10.0.2.0/24"]
-    }
-  ]
-
-  service_endpoints = ["Microsoft.Sql", "Microsoft.Storage"]
-  
   tags = {
     environment = "dev"
     project     = "terraform-vnet"
   }
+}
+
+
+module "aks_subnets" {
+  source               = "../modules/subnet"
+  location             = "East US"
+  resource_group_name  = module.resource_group.resource_group_name
+  virtual_network_name = module.vnet.vnet_name
+  subnets = [
+    {
+      name              = "aks-subnet"
+      address_prefix    = "10.0.1.0/24"
+      service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault", "Microsoft.ContainerRegistry"]
+    },
+    {
+      name              = "appgw-subnet"
+      address_prefix    = "10.0.2.0/24"
+      service_endpoints = ["Microsoft.Storage"]
+    }
+  ]
 }
 
 
@@ -115,7 +122,7 @@ module "storage_account" {
   access_tier               = "Hot"
   allow_blob_public_access  = false
 
-  enable_network_rules       = true
+  enable_network_rules       = false
   default_action             = "Deny"
   ip_rules                   = ["192.168.0.1"]
   virtual_network_subnet_ids = [module.vnet.subnet_names]
@@ -129,4 +136,36 @@ module "storage_account" {
     environment = "production"
     owner       = "devops-team"
   }
+}
+
+
+module "aks_cluster" {
+  source                  = "../modules/aks"
+  app_name                = "demoaks"
+  resource_group          = module.resource_group.name
+  aks_subnet_id           = module.aks_subnets.subnet_ids["aks-subnet"]
+  applicationgw_subnet_id = module.aks_subnets.subnet_ids["appgw-subnet"]
+  kubernetes_version      = "1.30.1"
+
+  location = "East US"
+
+
+  node_pools = [
+    {
+      name                 = "default"
+      orchestrator_version = "1.25.6"
+      os_disk_size_gb      = 128
+      auto_scaling_enabled = true
+      node_count           = 1
+      min_count            = 1
+      max_count            = 3
+      zones                = ["1", "2", "3"]
+      vm_size              = "Standard_DS2_v2"
+      os_type              = "Linux"
+      mode                 = "System"
+      taints               = []
+      tags                 = { environment = "prod" }
+      subnet_name          = "aks-subnet" # Reference the correct subnet name
+    }
+  ]
 }
