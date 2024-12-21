@@ -4,7 +4,7 @@ variable "node_pools" {
     name                 = string
     orchestrator_version = string
     os_disk_size_gb      = number
-    vnet_subnet_id       = string
+    #vnet_subnet_id       = string
     auto_scaling_enabled = bool
     node_count           = number
     min_count            = number
@@ -22,7 +22,7 @@ variable "node_pools" {
       name                 = "nodepool1"
       orchestrator_version = "1.21.2"
       os_disk_size_gb      = 30
-      vnet_subnet_id       = "aks-subnet"
+      #vnet_subnet_id       = "aks-subnet"
       auto_scaling_enabled = true
       node_count           = 3
       min_count            = 2
@@ -111,8 +111,13 @@ variable "default_nodepool_vm_size" {
   default     = "Standard_DS2_v2"
 }
 
-variable "subnet_id" {
+variable "aks_subnet_id" {
   description = "Subnets for K8s cluster"
+  type        = string
+}
+
+variable "applicationgw_subnet_id" {
+  description = "Subnets for appgw"
   type        = string
 }
 
